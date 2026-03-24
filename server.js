@@ -25,7 +25,8 @@ const server = http.createServer(app);
 // 2. KHỞI TẠO SOCKET.IO CHO SERVER (MỚI)
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Cho phép Frontend kết nối ống nước
+    // 👉 ĐÃ SỬA: Mở cửa Socket.io cho cả tên miền thật
+    origin: ["http://localhost:5173", "https://tamsu.id.vn", "https://www.tamsu.id.vn"], 
     methods: ["GET", "POST"]
   }
 });
@@ -34,8 +35,10 @@ connectDB();
 
 app.use(express.json());
 app.use(cookieParser());
+
+// 👉 ĐÃ SỬA: Mở cửa API cho cả tên miền thật
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ["http://localhost:5173", "https://tamsu.id.vn", "https://www.tamsu.id.vn"],
   credentials: true
 }));
 
