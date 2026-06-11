@@ -4,7 +4,7 @@ const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
-// IMPORT SOCKET.IO VÀ HTTP (MỚI)
+// IMPORT SOCKET.IO VÀ HTTP
 const http = require('http');
 const { Server } = require('socket.io');
 const Message = require('./models/Message');
@@ -12,21 +12,21 @@ const Message = require('./models/Message');
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const messageRoutes = require('./routes/messageRoutes');
-// IMPORT ROUTE ĐƠN HÀNG MỚI
 const orderRoutes = require('./routes/orderRoutes'); 
+const uploadRoutes = require('./routes/uploadRoutes');
+const chatbotRoutes = require('./routes/chatbotRoutes'); // 👉 ĐÃ THÊM IMPORT ROUTE CHATBOT VÀO ĐÂY
 
 dotenv.config();
 
 const app = express();
 
-// 1. TẠO HTTP SERVER VÀ BỌC APP LẠI (MỚI)
+// 1. TẠO HTTP SERVER VÀ BỌC APP LẠI
 const server = http.createServer(app);
 
-// 2. KHỞI TẠO SOCKET.IO CHO SERVER (MỚI)
+// 2. KHỞI TẠO SOCKET.IO CHO SERVER
 const io = new Server(server, {
   cors: {
-    // 👉 ĐÃ SỬA: Mở cửa Socket.io cho cả tên miền thật
-    origin: ["http://localhost:5173", "https://tamsu.id.vn", "https://www.tamsu.id.vn"], 
+    origin: ["https://tamsu.id.vn", "https://tamsu.id.vn", "https://www.tamsu.id.vn"], 
     methods: ["GET", "POST"]
   }
 });
@@ -36,9 +36,8 @@ connectDB();
 app.use(express.json());
 app.use(cookieParser());
 
-// 👉 ĐÃ SỬA: Mở cửa API cho cả tên miền thật
 app.use(cors({
-  origin: ["http://localhost:5173", "https://tamsu.id.vn", "https://www.tamsu.id.vn"],
+  origin: ["https://tamsu.id.vn", "https://tamsu.id.vn", "https://www.tamsu.id.vn"],
   credentials: true
 }));
 
@@ -46,8 +45,9 @@ app.use(cors({
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/messages', messageRoutes);
-// 👉 ĐÃ THÊM ĐƯỜNG ỐNG ĐƠN HÀNG VÀO ĐÂY
 app.use('/api/orders', orderRoutes); 
+app.use('/api/upload', uploadRoutes);
+app.use('/api/chatbot', chatbotRoutes); // 👉 ĐÃ KÍCH HOẠT ĐƯỜNG ỐNG CHATBOT Ở ĐÂY
 
 // ------------------------------------------------------------------
 // KHU VỰC XỬ LÝ SOCKET.IO (CHAT REAL-TIME)
@@ -72,9 +72,6 @@ io.on("connection", (socket) => {
       });
       await newMessage.save();
 
-      // ==========================================
-      // ĐIỂM SỬA LỖI NẰM Ở ĐÂY: Phát sóng 2 kênh
-      // ==========================================
       // 1. Bắn vào phòng chat chung của 2 người (Dành cho bong bóng chat)
       socket.to(data.roomId).emit("receive_message", data);
       
@@ -98,7 +95,6 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// QUAN TRỌNG: Đổi app.listen thành server.listen
 server.listen(PORT, () => {
   console.log(`🔥 Server & Socket.io đang chạy tại http://localhost:${PORT}`);
 });

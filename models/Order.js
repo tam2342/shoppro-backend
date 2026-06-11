@@ -1,3 +1,4 @@
+// backend/models/Order.js
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema(
@@ -23,11 +24,19 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
-    // 4. THÔNG TIN GIAO HÀNG
+    // 4. THÔNG TIN GIAO HÀNG (Đã bổ sung trường city phục vụ thống kê khu vực)
     shippingAddress: {
       fullName: { type: String, required: true },
       phone: { type: String, required: true },
       address: { type: String, required: true },
+      city: { type: String, required: true }, // 👉 Dùng để nhóm (group) dữ liệu vẽ biểu đồ khu vực
+    },
+
+    // 👉 QUẢN LÝ CHI NHÁNH XỬ LÝ ĐƠN
+    branch: { 
+      type: String, 
+      required: true,
+      default: 'Chi nhánh chính' 
     },
 
     // 5. THÔNG TIN THANH TOÁN
@@ -45,7 +54,7 @@ const orderSchema = new mongoose.Schema(
     shippingPrice: { type: Number, required: true, default: 0.0 },
     totalPrice: { type: Number, required: true, default: 0.0 },
 
-    // 7. TRẠNG THÁI THEO DÕI
+    // 7. TRẠNG THÁI THEO DÕI VÀ VÒNG ĐỜI ĐƠN HÀNG
     isPaid: { type: Boolean, required: true, default: false },
     paidAt: { type: Date },
     
@@ -55,7 +64,7 @@ const orderSchema = new mongoose.Schema(
       default: 'Chờ xác nhận',
       enum: ['Chờ xác nhận', 'Đang xử lý', 'Đang giao hàng', 'Đã giao', 'Đã hủy'] 
     },
-    deliveredAt: { type: Date },
+    deliveredAt: { type: Date }, // Lưu mốc thời gian khách nhận hàng để chốt doanh thu
   },
   {
     timestamps: true, // Tự động tạo createdAt (Ngày đặt hàng) và updatedAt

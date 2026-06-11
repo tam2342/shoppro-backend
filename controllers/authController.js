@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const axios = require('axios'); // 👉 ĐÃ THÊM: Cài đặt axios để gọi API xác thực với Google
 
 // ------------------------------------------------------------------
 // HÀM TIỆN ÍCH: TẠO CHỮ KÝ ĐIỆN TỬ (TOKEN)
@@ -45,13 +46,13 @@ const registerUser = async (req, res) => {
       res.status(400).json({ message: 'Dữ liệu không hợp lệ, không thể tạo tài khoản.' });
     }
   } catch (error) {
-    console.log("🚨 CHI TIẾT LỖI TẠI BACKEND:", error); // Dòng này ép nó phải in lỗi ra Terminal
+    console.log("🚨 CHI TIẾT LỖI TẠI BACKEND:", error); 
     res.status(500).json({ message: 'Lỗi Server!', error: error.message });
   }
 };
 
 // ------------------------------------------------------------------
-// API 2: ĐĂNG NHẬP (POST /api/auth/login)
+// API 2: ĐĂNG NHẬP TRUYỀN THỐNG (POST /api/auth/login)
 // ------------------------------------------------------------------
 const loginUser = async (req, res) => {
   try {
@@ -74,9 +75,52 @@ const loginUser = async (req, res) => {
       res.status(401).json({ message: 'Email hoặc mật khẩu không chính xác!' });
     }
   } catch (error) {
-    console.log("🚨 CHI TIẾT LỖI TẠI BACKEND:", error); // Dòng này ép nó phải in lỗi ra Terminal
+    console.log("🚨 CHI TIẾT LỖI TẠI BACKEND:", error); 
     res.status(500).json({ message: 'Lỗi Server!', error: error.message });
   }
 };
 
-module.exports = { registerUser, loginUser };
+// ------------------------------------------------------------------
+// API 3: ĐĂNG NHẬP BẰNG GOOGLE (POST /api/auth/google) - 👉 BỔ SUNG MỚI
+// ------------------------------------------------------------------
+const googleLogin = async (req, res) => {
+  try {
+    const { access_token } = req.body;
+
+    // 1. Dùng Access Token gửi từ Frontend để xin Google cấp thông tin Userinfo
+    const { data: googleUser } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+
+    // 2. Tìm trong Database xem Email Google này đã từng xuất hiện chưa
+    let user = await User.findOne({ email: googleUser.email });
+
+    // 3. Nếu chưa có, hệ thống tự động tạo luôn tài khoản (Social Register)
+    if (!user) {
+      user = await User.create({
+        name: googleUser.name,
+        email: googleUser.email,
+        // Vì đăng nhập bên thứ 3 nên tạo bừa 1 chuỗi ngẫu nhiên làm pass để vượt qua validation của Schema
+        password: Math.random().toString(36).slice(-8) + Date.now().toString(), 
+        role: 'buyer', // Mặc định tài khoản Google tạo mới là người mua
+        avatar: googleUser.picture // Lưu ảnh đại diện từ Google
+      });
+    }
+
+    // 4. Trả về thông tin User kèm JWT Token của riêng hệ thống mình y chang hàm login truyền thống
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+
+  } catch (error) {
+    console.log("🚨 CHI TIẾT LỖI GOOGLE LOGIN TẠI BACKEND:", error);
+    res.status(400).json({ message: 'Xác thực tài khoản Google thất bại!', error: error.message });
+  }
+};
+
+module.exports = { registerUser, loginUser, googleLogin }; // 👉 Đã export thêm googleLogin ở đây

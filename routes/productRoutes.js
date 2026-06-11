@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // ĐÃ THÊM hàm searchProducts vào danh sách import
-const { getMyProducts, createProduct, updateProduct, deleteProduct, getProductById, searchProducts } = require('../controllers/productController');
+const { getMyProducts, createProduct, updateProduct, deleteProduct, getProductById, searchProducts ,createProductReview,deleteProductReview, updateProductReview} = require('../controllers/productController');
 const { protect, sellerOnly } = require('../middlewares/authMiddleware');
 
 // 1. CÁC ROUTE CHUNG (Không có ID)
@@ -33,5 +33,10 @@ router.route('/:id')
   .get(getProductById)                         // Khách hàng xem chi tiết 1 sản phẩm 
   .put(protect, sellerOnly, updateProduct)     // Sửa (Chỉ Seller)
   .delete(protect, sellerOnly, deleteProduct); // Xóa (Chỉ Seller)
+// Nhớ khai báo hàm middleware protect (xác thực đăng nhập) nếu bạn đã có
+router.post('/:id/reviews', protect, createProductReview);
+// Thêm 2 route này bên cạnh cái router.post createProductReview cũ của bạn:
+router.delete('/:id/reviews/:reviewId', protect, deleteProductReview);
+router.put('/:id/reviews/:reviewId', protect, updateProductReview);
 
 module.exports = router;
