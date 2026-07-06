@@ -46,23 +46,31 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
 
-    // Kiểm tra sản phẩm tồn tại và CÓ PHẢI CỦA CHÍNH CHỦ KHÔNG
-    if (product) {
-      if (product.seller.toString() !== req.user._id.toString()) {
-        return res.status(401).json({ message: 'Bạn không có quyền sửa sản phẩm của shop khác!' });
-      }
-
-      product.name = req.body.name || product.name;
-      product.price = req.body.price || product.price;
-      // ... (cập nhật các trường khác tương tự)
-
-      const updatedProduct = await product.save();
-      res.json(updatedProduct);
-    } else {
-      res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+    if (product.seller.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: 'Không có quyền!' });
     }
+
+    const updated = await Product.findByIdAndUpdate(
+      req.params.id,
+      { 
+        $set: {
+          name: req.body.name,
+          price: req.body.price,
+          description: req.body.description,
+          category: req.body.category,
+          brand: req.body.brand,
+          countInStock: req.body.countInStock,
+          images: req.body.images   // cho phép ghi đè mảng
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.json(updated);
   } catch (error) {
+    console.error("🚨 LỖI UPDATE:", error);
     res.status(500).json({ message: 'Lỗi Server!', error: error.message });
   }
 };
