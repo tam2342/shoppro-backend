@@ -19,24 +19,43 @@ const getMyProducts = async (req, res) => {
 // ------------------------------------------------------------------
 const createProduct = async (req, res) => {
   try {
-    const { name, price, description, images, category, countInStock, brand } = req.body;
+    const { 
+      name, 
+      price, 
+      description, 
+      images,     // Mảng URL ảnh từ Cloudinary
+      category, 
+      countInStock, 
+      brand 
+    } = req.body;
+
+    // Kiểm tra dữ liệu bắt buộc
+    if (!name || !price || !category) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc (name, price, category)' });
+    }
+
+    // Đảm bảo images là mảng (nếu frontend không gửi hoặc gửi null thì mặc định [])
+    const productImages = Array.isArray(images) ? images : [];
 
     const product = new Product({
       name,
       price,
-      description,
-      images, // Tạm thời Frontend gửi mảng string link ảnh
+      description: description || '',
+      images: productImages,        // Lưu mảng ảnh
       category,
-      countInStock,
-      brand,
-      seller: req.user._id // GẮN ID CỦA NGƯỜI BÁN ĐANG ĐĂNG NHẬP VÀO ĐÂY
+      countInStock: countInStock || 0,
+      brand: brand || '',
+      seller: req.user._id
     });
 
     const createdProduct = await product.save();
     res.status(201).json(createdProduct);
   } catch (error) {
-    console.log("🚨 LỖI THÊM SẢN PHẨM TẠI BACKEND:", error); // Ép in lỗi ra Terminal
-    res.status(400).json({ message: 'Dữ liệu không hợp lệ!', error: error.message });
+    console.log("🚨 LỖI THÊM SẢN PHẨM TẠI BACKEND:", error);
+    res.status(400).json({ 
+      message: 'Dữ liệu không hợp lệ!', 
+      error: error.message 
+    });
   }
 };
 
@@ -46,32 +65,54 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
-
-    if (product.seller.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Không có quyền!' });
+    
+    if (!product) {
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
     }
 
-    const updated = await Product.findByIdAndUpdate(
+    // Kiểm tra quyền sở hữu
+    if (product.seller.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: 'Bạn không có quyền sửa sản phẩm này!' });
+    }
+
+    const { 
+      name, 
+      price, 
+      description, 
+      images, 
+      category, 
+      countInStock, 
+      brand 
+    } = req.body;
+
+    // Cập nhật chỉ những trường được gửi lên
+    const updateData = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (price !== undefined) updateData.price = price;
+    if (description !== undefined) updateData.description = description;
+    if (category !== undefined) updateData.category = category;
+    if (brand !== undefined) updateData.brand = brand;
+    if (countInStock !== undefined) updateData.countInStock = countInStock;
+
+    // Xử lý images - cho phép ghi đè mảng ảnh mới
+    if (images !== undefined) {
+      updateData.images = Array.isArray(images) ? images : [];
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      { 
-        $set: {
-          name: req.body.name,
-          price: req.body.price,
-          description: req.body.description,
-          category: req.body.category,
-          brand: req.body.brand,
-          countInStock: req.body.countInStock,
-          images: req.body.images   // cho phép ghi đè mảng
-        }
-      },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
 
-    res.json(updated);
+    res.json(updatedProduct);
   } catch (error) {
-    console.error("🚨 LỖI UPDATE:", error);
-    res.status(500).json({ message: 'Lỗi Server!', error: error.message });
+    console.error("🚨 LỖI UPDATE PRODUCT:", error);
+    res.status(500).json({ 
+      message: 'Lỗi Server!', 
+      error: error.message 
+    });
   }
 };
 
