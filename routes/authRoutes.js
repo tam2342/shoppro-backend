@@ -8,5 +8,5 @@ router.post('/register', registerUser);
 // Khi gọi POST đến /login, hàm loginUser sẽ được chạy
 router.post('/login', loginUser);
 router.post('/google', googleLogin); // 👉 KÍCH HOẠT ĐƯỜNG DẪN NÀY LÀ XONG ĐỒ ÁN!
-
+router.put('/toggle-2fa', protect, toggle2FA);
 module.exports = router;
