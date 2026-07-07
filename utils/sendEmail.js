@@ -12,7 +12,7 @@ const sendEmail = async (options) => {
   });
 
   const mailOptions = {
-    from: '"Shop Tâm Sự" <admin@tamsu.id.vn>',
+    from: '"ShopPro" <admin@tamsu.id.vn>',
     to: options.email,
     subject: options.subject,
     html: options.message,
