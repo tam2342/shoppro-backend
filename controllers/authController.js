@@ -51,6 +51,7 @@ const registerUser = async (req, res) => {
 // ------------------------------------------------------------------
 // API 2: ĐĂNG NHẬP TRUYỀN THỐNG + HỖ TRỢ 2FA (POST /api/auth/login)
 // ------------------------------------------------------------------
+// API 2: ĐĂNG NHẬP + HỖ TRỢ 2FA
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -59,39 +60,37 @@ const loginUser = async (req, res) => {
 
     if (user && (await user.matchPassword(password))) {
 
-      // Nếu người dùng đã bật 2FA → Yêu cầu nhập OTP
+      // Nếu đã bật 2FA → Yêu cầu OTP
       if (user.is2FAEnabled) {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // OTP 6 số
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         user.otp = otp;
         user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 phút
         await user.save();
 
         const message = `
-          <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #2563eb;">Mã xác thực đăng nhập</h2>
-            <p>Xin chào <strong>${user.name}</strong>,</p>
-            <p>Mã OTP của bạn là: <strong style="font-size: 28px; color: #dc2626; letter-spacing: 4px;">${otp}</strong></p>
-            <p>Mã này có hiệu lực trong <strong>5 phút</strong>. Vui lòng không chia sẻ cho bất kỳ ai.</p>
-            <p style="margin-top: 20px; font-size: 13px; color: #666;">Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.</p>
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>Mã xác thực đăng nhập</h2>
+            <p>Xin chào <b>${user.name}</b>,</p>
+            <p>Mã OTP của bạn là: <b style="font-size:24px;color:red;">${otp}</b></p>
+            <p>Mã này có hiệu lực trong 5 phút.</p>
           </div>
         `;
 
-        await sendEmail({
-          email: user.email,
-          subject: '🔐 Mã OTP xác thực 2 lớp - Shop Tâm Sự',
-          message
+        await sendEmail({ 
+          email: user.email, 
+          subject: 'Mã OTP xác thực 2 lớp', 
+          message 
         });
 
         return res.json({ 
           requireOTP: true, 
-          userId: user._id,
-          message: 'Vui lòng kiểm tra email để lấy mã OTP' 
+          userId: user._id 
         });
       }
 
-      // Đăng nhập bình thường (không bật 2FA)
-      res.json({
+      // Không bật 2FA → đăng nhập bình thường
+      return res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
@@ -104,8 +103,8 @@ const loginUser = async (req, res) => {
       res.status(401).json({ message: 'Email hoặc mật khẩu không chính xác!' });
     }
   } catch (error) {
-    console.log("🚨 CHI TIẾT LỖI TẠI BACKEND:", error); 
-    res.status(500).json({ message: 'Lỗi Server!', error: error.message });
+    console.log("🚨 LỖI LOGIN:", error);
+    res.status(500).json({ message: 'Lỗi Server!' });
   }
 };
 
