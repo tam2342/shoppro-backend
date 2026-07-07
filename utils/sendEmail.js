@@ -1,14 +1,13 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  // Cấu hình SMTP (Ví dụ cấu hình của Hostinger/cPanel, hãy đổi host/port tương ứng nếu dùng bên khác)
   const transporter = nodemailer.createTransport({
-    host: 'smtp.hostinger.com', 
+    host: 'pro214.emailserver.vn',
     port: 465,
-    secure: true, // sử dụng SSL/TLS
+    secure: true, // SSL/TLS cho port 465
     auth: {
-      user: 'admin@tamsu.id.vn', 
-      pass: process.env.EMAIL_PASSWORD 
+      user: 'admin@tamsu.id.vn',
+      pass: process.env.EMAIL_PASSWORD
     },
   });
 
