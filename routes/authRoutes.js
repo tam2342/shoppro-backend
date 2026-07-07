@@ -1,12 +1,37 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, googleLogin } = require('../controllers/authController');
-// Khai báo các đường dẫn API
-// Khi gọi POST đến /register, hàm registerUser sẽ được chạy
+
+// ==================== IMPORT CONTROLLERS ====================
+const { 
+  registerUser, 
+  loginUser, 
+  googleLogin,
+  verifyLoginOTP,
+  changePassword,
+  toggle2FA 
+} = require('../controllers/authController');
+
+// ==================== IMPORT MIDDLEWARE ====================
+const { protect } = require('../middlewares/authMiddleware');
+
+// ==================== CÁC ROUTES ====================
+
+// Đăng ký tài khoản
 router.post('/register', registerUser);
 
-// Khi gọi POST đến /login, hàm loginUser sẽ được chạy
+// Đăng nhập truyền thống
 router.post('/login', loginUser);
-router.post('/google', googleLogin); // 👉 KÍCH HOẠT ĐƯỜNG DẪN NÀY LÀ XONG ĐỒ ÁN!
+
+// Đăng nhập bằng Google
+router.post('/google', googleLogin);
+
+// Xác thực mã OTP (2FA)
+router.post('/verify-otp', verifyLoginOTP);
+
+// Đổi mật khẩu (yêu cầu đã đăng nhập)
+router.put('/change-password', protect, changePassword);
+
+// Bật / Tắt 2FA (yêu cầu đã đăng nhập)
 router.put('/toggle-2fa', protect, toggle2FA);
+
 module.exports = router;
