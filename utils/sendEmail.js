@@ -1,9 +1,21 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend = null;
+
+const getResendClient = () => {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('Thiếu biến môi trường RESEND_API_KEY. Vui lòng cấu hình trên Render.');
+  }
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+};
 
 const sendEmail = async (options) => {
-  const { data, error } = await resend.emails.send({
+  const client = getResendClient();
+
+  const { data, error } = await client.emails.send({
     from: 'ShopPro <admin@tamsu.id.vn>',
     to: options.email,
     subject: options.subject,
