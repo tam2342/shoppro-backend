@@ -189,6 +189,9 @@ const toggle2FA = async (req, res) => {
 // ------------------------------------------------------------------
 // API 6: ĐĂNG NHẬP BẰNG GOOGLE
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// API 6: ĐĂNG NHẬP BẰNG GOOGLE (BYPASS 2FA)
+// ------------------------------------------------------------------
 const googleLogin = async (req, res) => {
   try {
     const { access_token } = req.body;
@@ -205,10 +208,12 @@ const googleLogin = async (req, res) => {
         email: googleUser.email,
         password: Math.random().toString(36).slice(-8) + Date.now().toString(),
         role: 'buyer',
-        avatar: googleUser.picture
+        avatar: googleUser.picture,
+        is2FAEnabled: false   // ← Đảm bảo tài khoản Google không bật 2FA
       });
     }
 
+    // Google login luôn bypass 2FA
     res.json({
       _id: user._id,
       name: user.name,
