@@ -37,6 +37,7 @@ const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        is2FAEnabled: user.is2FAEnabled,
         token: generateToken(user._id),
       });
     } else {
@@ -51,7 +52,6 @@ const registerUser = async (req, res) => {
 // ------------------------------------------------------------------
 // API 2: ĐĂNG NHẬP TRUYỀN THỐNG + HỖ TRỢ 2FA (POST /api/auth/login)
 // ------------------------------------------------------------------
-// API 2: ĐĂNG NHẬP + HỖ TRỢ 2FA
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -96,6 +96,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
         avatar: user.avatar,
+        is2FAEnabled: user.is2FAEnabled,   // ← BỔ SUNG: giữ đúng trạng thái 2FA sau khi đăng nhập lại
         token: generateToken(user._id),
       });
 
@@ -132,6 +133,7 @@ const verifyLoginOTP = async (req, res) => {
       email: user.email,
       role: user.role,
       avatar: user.avatar,
+      is2FAEnabled: user.is2FAEnabled,   // ← BỔ SUNG: giữ đúng trạng thái 2FA sau khi xác thực OTP
       token: generateToken(user._id),
     });
 
@@ -186,9 +188,6 @@ const toggle2FA = async (req, res) => {
 };
 
 // ------------------------------------------------------------------
-// API 6: ĐĂNG NHẬP BẰNG GOOGLE
-// ------------------------------------------------------------------
-// ------------------------------------------------------------------
 // API 6: ĐĂNG NHẬP BẰNG GOOGLE (BYPASS 2FA)
 // ------------------------------------------------------------------
 const googleLogin = async (req, res) => {
@@ -219,6 +218,7 @@ const googleLogin = async (req, res) => {
       email: user.email,
       role: user.role,
       avatar: user.avatar,
+      is2FAEnabled: user.is2FAEnabled,   // ← BỔ SUNG: giữ đúng trạng thái 2FA của tài khoản
       token: generateToken(user._id),
     });
 
