@@ -28,6 +28,22 @@ const userSchema = new mongoose.Schema(
       type: String, 
       default: '' 
     },
+    
+    // ==========================================
+    // BỔ SUNG CHO TÍNH NĂNG XÁC THỰC 2 LỚP (2FA)
+    // ==========================================
+    is2FAEnabled: {
+      type: Boolean,
+      default: false
+    },
+    otp: {
+      type: String
+    },
+    otpExpires: {
+      type: Date
+    },
+    // ==========================================
+
     // PHÂN QUYỀN (Role-Based Access Control)
     role: {
       type: String,

@@ -1,12 +1,12 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const axios = require('axios'); // 👉 ĐÃ THÊM: Cài đặt axios để gọi API xác thực với Google
+const axios = require('axios');
+const sendEmail = require('../utils/sendEmail');   // ← Đảm bảo import đúng đường dẫn
 
 // ------------------------------------------------------------------
 // HÀM TIỆN ÍCH: TẠO CHỮ KÝ ĐIỆN TỬ (TOKEN)
 // ------------------------------------------------------------------
 const generateToken = (id) => {
-  // Token sẽ chứa ID của user, được khóa bằng JWT_SECRET và có hạn 30 ngày
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });
@@ -19,21 +19,18 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    // 1. Kiểm tra xem email đã tồn tại trong Database chưa
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: 'Email này đã được sử dụng!' });
     }
 
-    // 2. Tạo User mới (Mật khẩu sẽ tự động được mã hóa nhờ hàm pre-save ở Model)
     const user = await User.create({
       name,
       email,
       password,
-      role: role || 'buyer', // Nếu không gửi role lên, mặc định là người mua
+      role: role || 'buyer',
     });
 
-    // 3. Trả về thông tin User kèm theo Token
     if (user) {
       res.status(201).json({
         _id: user._id,
@@ -52,17 +49,48 @@ const registerUser = async (req, res) => {
 };
 
 // ------------------------------------------------------------------
-// API 2: ĐĂNG NHẬP TRUYỀN THỐNG (POST /api/auth/login)
+// API 2: ĐĂNG NHẬP TRUYỀN THỐNG + HỖ TRỢ 2FA (POST /api/auth/login)
 // ------------------------------------------------------------------
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Tìm user theo email
     const user = await User.findOne({ email });
 
-    // 2. Nếu có user VÀ mật khẩu giải mã ra khớp nhau
     if (user && (await user.matchPassword(password))) {
+
+      // Nếu người dùng đã bật 2FA → Yêu cầu nhập OTP
+      if (user.is2FAEnabled) {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // OTP 6 số
+
+        user.otp = otp;
+        user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 phút
+        await user.save();
+
+        const message = `
+          <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #2563eb;">Mã xác thực đăng nhập</h2>
+            <p>Xin chào <strong>${user.name}</strong>,</p>
+            <p>Mã OTP của bạn là: <strong style="font-size: 28px; color: #dc2626; letter-spacing: 4px;">${otp}</strong></p>
+            <p>Mã này có hiệu lực trong <strong>5 phút</strong>. Vui lòng không chia sẻ cho bất kỳ ai.</p>
+            <p style="margin-top: 20px; font-size: 13px; color: #666;">Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.</p>
+          </div>
+        `;
+
+        await sendEmail({
+          email: user.email,
+          subject: '🔐 Mã OTP xác thực 2 lớp - Shop Tâm Sự',
+          message
+        });
+
+        return res.json({ 
+          requireOTP: true, 
+          userId: user._id,
+          message: 'Vui lòng kiểm tra email để lấy mã OTP' 
+        });
+      }
+
+      // Đăng nhập bình thường (không bật 2FA)
       res.json({
         _id: user._id,
         name: user.name,
@@ -71,6 +99,7 @@ const loginUser = async (req, res) => {
         avatar: user.avatar,
         token: generateToken(user._id),
       });
+
     } else {
       res.status(401).json({ message: 'Email hoặc mật khẩu không chính xác!' });
     }
@@ -81,33 +110,23 @@ const loginUser = async (req, res) => {
 };
 
 // ------------------------------------------------------------------
-// API 3: ĐĂNG NHẬP BẰNG GOOGLE (POST /api/auth/google) - 👉 BỔ SUNG MỚI
+// API 3: XÁC THỰC MÃ OTP KHI ĐĂNG NHẬP (POST /api/auth/verify-otp)
 // ------------------------------------------------------------------
-const googleLogin = async (req, res) => {
+const verifyLoginOTP = async (req, res) => {
   try {
-    const { access_token } = req.body;
+    const { userId, otp } = req.body;
 
-    // 1. Dùng Access Token gửi từ Frontend để xin Google cấp thông tin Userinfo
-    const { data: googleUser } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${access_token}` }
-    });
+    const user = await User.findById(userId);
 
-    // 2. Tìm trong Database xem Email Google này đã từng xuất hiện chưa
-    let user = await User.findOne({ email: googleUser.email });
-
-    // 3. Nếu chưa có, hệ thống tự động tạo luôn tài khoản (Social Register)
-    if (!user) {
-      user = await User.create({
-        name: googleUser.name,
-        email: googleUser.email,
-        // Vì đăng nhập bên thứ 3 nên tạo bừa 1 chuỗi ngẫu nhiên làm pass để vượt qua validation của Schema
-        password: Math.random().toString(36).slice(-8) + Date.now().toString(), 
-        role: 'buyer', // Mặc định tài khoản Google tạo mới là người mua
-        avatar: googleUser.picture // Lưu ảnh đại diện từ Google
-      });
+    if (!user || user.otp !== otp || !user.otpExpires || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: 'Mã OTP không đúng hoặc đã hết hạn!' });
     }
 
-    // 4. Trả về thông tin User kèm JWT Token của riêng hệ thống mình y chang hàm login truyền thống
+    // Xóa OTP sau khi xác thực thành công
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
     res.json({
       _id: user._id,
       name: user.name,
@@ -118,9 +137,98 @@ const googleLogin = async (req, res) => {
     });
 
   } catch (error) {
-    console.log("🚨 CHI TIẾT LỖI GOOGLE LOGIN TẠI BACKEND:", error);
-    res.status(400).json({ message: 'Xác thực tài khoản Google thất bại!', error: error.message });
+    console.log("🚨 LỖI VERIFY OTP:", error);
+    res.status(500).json({ message: 'Lỗi Server!', error: error.message });
   }
 };
 
-module.exports = { registerUser, loginUser, googleLogin }; // 👉 Đã export thêm googleLogin ở đây
+// ------------------------------------------------------------------
+// API 4: ĐỔI MẬT KHẨU (PUT /api/auth/change-password)
+// ------------------------------------------------------------------
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    user.password = newPassword; // Mật khẩu sẽ được hash tự động nhờ pre-save
+    await user.save();
+
+    res.json({ message: 'Đổi mật khẩu thành công!' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ------------------------------------------------------------------
+// API 5: BẬT / TẮT 2FA (PUT /api/auth/toggle-2fa)
+// ------------------------------------------------------------------
+const toggle2FA = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    user.is2FAEnabled = !user.is2FAEnabled;
+    await user.save();
+
+    res.json({ 
+      is2FAEnabled: user.is2FAEnabled, 
+      message: user.is2FAEnabled 
+        ? 'Đã bật xác thực 2 lớp thành công' 
+        : 'Đã tắt xác thực 2 lớp' 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ------------------------------------------------------------------
+// API 6: ĐĂNG NHẬP BẰNG GOOGLE
+// ------------------------------------------------------------------
+const googleLogin = async (req, res) => {
+  try {
+    const { access_token } = req.body;
+
+    const { data: googleUser } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+
+    let user = await User.findOne({ email: googleUser.email });
+
+    if (!user) {
+      user = await User.create({
+        name: googleUser.name,
+        email: googleUser.email,
+        password: Math.random().toString(36).slice(-8) + Date.now().toString(),
+        role: 'buyer',
+        avatar: googleUser.picture
+      });
+    }
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+
+  } catch (error) {
+    console.log("🚨 CHI TIẾT LỖI GOOGLE LOGIN:", error);
+    res.status(400).json({ message: 'Xác thực Google thất bại!', error: error.message });
+  }
+};
+
+module.exports = { 
+  registerUser, 
+  loginUser, 
+  googleLogin,
+  verifyLoginOTP,
+  changePassword,
+  toggle2FA 
+};
