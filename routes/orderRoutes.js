@@ -1,5 +1,10 @@
 const express = require('express');
 const router = express.Router();
+// ==== THÊM VÀO ĐẦU FILE orderRoutes.js (cùng các require khác) ====
+const { sendSupportRequest } = require('../controllers/supportController');
+ 
+// ==== THÊM DÒNG NÀY VÀO PHẦN KHAI BÁO ROUTE (cần middleware "protect" xác thực đăng nhập) ====
+
 
 // 👉 1. GỘP CHUNG TOÀN BỘ CONTROLLER VÀO 1 CHỖ DUY NHẤT (Tránh lỗi sập Server)
 const { 
@@ -18,7 +23,7 @@ const {
 // 👉 2. CHỈ IMPORT MIDDLEWARE 1 LẦN
 // (Lưu ý: Nếu thư mục của ông tên là 'middlewares' có chữ 's' thì sửa lại nhé, tôi đang để mặc định là 'middleware')
 const { protect } = require('../middlewares/authMiddleware');
-
+router.post('/:id/support', protect, sendSupportRequest);
 // ==========================================
 // 1. API HỨNG KẾT QUẢ VNPAY
 // ==========================================
